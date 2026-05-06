@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💡 提示詞大神 Prompt Master</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        textarea:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .result-box {
+            margin-top: 30px;
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap; /* 保持換行格式 */
+            font-size: 16px;
+            line-height: 1.6;
+            display: none; /* 預設隱藏，有結果才顯示 */
+        }
+        .loader {
+            text-align: center;
+            margin-top: 15px;
+            color: #7f8c8d;
+            font-style: italic;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>💡 提示詞大神</h1>
+    
+    <div class="container">
+        <p>請輸入你腦中粗略的想法或簡單的指令：</p>
+        <textarea id="userInput" placeholder="例如：幫我寫一個關於 AI 融入教學的研習計畫，大概 2 小時..."></textarea>
+        
+        <button id="optimizeBtn" onclick="optimizePrompt()">✨ 一鍵優化提示詞</button>
+        <div id="loader" class="loader">大神正在施展魔法中，請稍候...</div>
+        
+        <div id="resultBox" class="result-box"></div>
+    </div>
+
+    <script>
+      // 請填入你剛剛部署成功後取得的 GAS 網頁應用程式網址
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyXtjW8UvQ97jQC5lgM4LYocEkBoTUpZU5CB-5HHQSTSq-IGcSrnYD-cUUknK4Ed7DK/exec'; 
+
+async function optimizePrompt() {
+    const userInput = document.getElementById('userInput').value;
+    const btn = document.getElementById('optimizeBtn');
+    const loader = document.getElementById('loader');
+    const resultBox = document.getElementById('resultBox');
+
+    if (!userInput.trim()) {
+        alert("請先輸入一些想法喔！");
+        return;
+    }
+
+    // UI 狀態切換：載入中
+    btn.disabled = true;
+    loader.style.display = 'block';
+    resultBox.style.display = 'none';
+    resultBox.innerHTML = '';
+
+    try {
+        // 發送 POST 請求給你的 GAS 中繼層
+        // 技巧：使用 text/plain 可以避開瀏覽器的 CORS 預檢請求 (Preflight OPTIONS)
+        const response = await fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8', 
+            },
+            body: JSON.stringify({ userInput: userInput })
+        });
+
+        const data = await response.json();
+
+        // 接收 GAS 傳回來的處理結果
+        if (data.status === "success") {
+            resultBox.innerHTML = data.result;
+        } else {
+            resultBox.innerHTML = "發生錯誤：" + data.message;
+        }
+        resultBox.style.display = 'block';
+
+    } catch (error) {
+        console.error("呼叫失敗:", error);
+        resultBox.innerHTML = "連線失敗，請檢查網路或 GAS 網址是否正確。";
+        resultBox.style.display = 'block';
+    } finally {
+        // UI 狀態還原
+        btn.disabled = false;
+        loader.style.display = 'none';
+    }
+}
+    </script>
+</body>
+</html>
