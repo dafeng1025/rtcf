@@ -23,6 +23,31 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        /* 新增 API Key 輸入框的樣式 */
+        .api-key-box {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #bdc3c7;
+        }
+        .api-key-box label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .api-key-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .api-key-box input:focus {
+            border-color: #e74c3c; /* 聚焦時顯示不同顏色提醒這是重要金鑰 */
+            outline: none;
+        }
         textarea {
             width: 100%;
             height: 120px;
@@ -64,7 +89,7 @@
             white-space: pre-wrap; /* 保持換行格式 */
             font-size: 16px;
             line-height: 1.6;
-            display: none; /* 預設隱藏，有結果才顯示 */
+            display: none; 
         }
         .loader {
             text-align: center;
@@ -80,6 +105,12 @@
     <h1>💡 提示詞大神</h1>
     
     <div class="container">
+        <!-- 新增的 API Key 區塊 -->
+        <div class="api-key-box">
+            <label for="apiKey">🔑 請貼上您的 Gemini API Key：</label>
+            <input type="password" id="apiKey" placeholder="請輸入以 AIzaSy 開頭的金鑰...">
+        </div>
+
         <p>請輸入你腦中粗略的想法或簡單的指令：</p>
         <textarea id="userInput" placeholder="例如：幫我寫一個關於 AI 融入教學的研習計畫，大概 2 小時..."></textarea>
         
@@ -90,57 +121,84 @@
     </div>
 
     <script>
-      // 請填入你剛剛部署成功後取得的 GAS 網頁應用程式網址
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzlLiqgeN5T73QVodIdccx4wkglcOiKd_kWJeFOiQPvRrI0uUKb9Ti1JVgy1vSg753x/exec'; 
+        async function optimizePrompt() {
+            // 抓取畫面上輸入的 API Key 與想法
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const userInput = document.getElementById('userInput').value.trim();
+            
+            const btn = document.getElementById('optimizeBtn');
+            const loader = document.getElementById('loader');
+            const resultBox = document.getElementById('resultBox');
 
-async function optimizePrompt() {
-    const userInput = document.getElementById('userInput').value;
-    const btn = document.getElementById('optimizeBtn');
-    const loader = document.getElementById('loader');
-    const resultBox = document.getElementById('resultBox');
+            // 阻擋未輸入的狀況
+            if (!apiKey) {
+                alert("請先在上方設定您的 Gemini API Key！");
+                document.getElementById('apiKey').focus();
+                return;
+            }
+            if (!userInput) {
+                alert("請先輸入一些想法喔！");
+                document.getElementById('userInput').focus();
+                return;
+            }
 
-    if (!userInput.trim()) {
-        alert("請先輸入一些想法喔！");
-        return;
-    }
+            // UI 狀態切換：載入中
+            btn.disabled = true;
+            loader.style.display = 'block';
+            resultBox.style.display = 'none';
+            resultBox.innerHTML = '';
 
-    // UI 狀態切換：載入中
-    btn.disabled = true;
-    loader.style.display = 'block';
-    resultBox.style.display = 'none';
-    resultBox.innerHTML = '';
+            // 寫在前端的萬用 Meta-Prompt
+            const systemPrompt = `你現在是一位頂級的「AI 提示詞工程師」。
+請將使用者輸入的粗略想法，運用 RTCF (角色 Role、任務 Task、情境 Context、格式 Format) 等框架，擴寫並優化成一個結構清晰、可以直接複製貼上給 AI 執行的完美 Prompt。
+請直接輸出優化後的 Prompt 內容，不要包含任何開場白或自我介紹，並且適當使用 Markdown 語法（如粗體、清單）讓結構更易讀。`;
 
-    try {
-        // 發送 POST 請求給你的 GAS 中繼層
-        // 技巧：使用 text/plain 可以避開瀏覽器的 CORS 預檢請求 (Preflight OPTIONS)
-        const response = await fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8', 
-            },
-            body: JSON.stringify({ userInput: userInput })
-        });
+            const fullPrompt = `${systemPrompt}\n\n使用者的粗略想法：${userInput}\n\n請給出優化後的完美版本：`;
 
-        const data = await response.json();
+            // 直接組裝 Gemini API 網址，帶入畫面上輸入的 API Key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
-        // 接收 GAS 傳回來的處理結果
-        if (data.status === "success") {
-            resultBox.innerHTML = data.result;
-        } else {
-            resultBox.innerHTML = "發生錯誤：" + data.message;
+            try {
+                // 發送 POST 請求直接給 Google 伺服器
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: fullPrompt }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.7 
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                // 解析 Google 伺服器回傳的結果
+                if (data.candidates && data.candidates.length > 0) {
+                    resultBox.innerHTML = data.candidates[0].content.parts[0].text;
+                } else if (data.error) {
+                    // 萬一 API Key 填錯或失效，這裡會攔截錯誤訊息
+                    resultBox.innerHTML = "🚨 API 發生錯誤：" + data.error.message;
+                } else {
+                    resultBox.innerHTML = "發生未知錯誤，請檢查連線。";
+                }
+                
+                resultBox.style.display = 'block';
+
+            } catch (error) {
+                console.error("呼叫失敗:", error);
+                resultBox.innerHTML = "連線失敗，請檢查網路狀態。";
+                resultBox.style.display = 'block';
+            } finally {
+                // UI 狀態還原
+                btn.disabled = false;
+                loader.style.display = 'none';
+            }
         }
-        resultBox.style.display = 'block';
-
-    } catch (error) {
-        console.error("呼叫失敗:", error);
-        resultBox.innerHTML = "連線失敗，請檢查網路或 GAS 網址是否正確。";
-        resultBox.style.display = 'block';
-    } finally {
-        // UI 狀態還原
-        btn.disabled = false;
-        loader.style.display = 'none';
-    }
-}
     </script>
 </body>
 </html>
