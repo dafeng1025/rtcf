@@ -13,40 +13,36 @@
             margin: 0 auto;
             padding: 20px;
         }
+        /* 讓標題區塊變成橫向排列，方便放置齒輪 */
+        .header-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin-bottom: 20px;
+        }
         h1 {
-            text-align: center;
             color: #2c3e50;
+            margin: 0;
+        }
+        /* 齒輪按鈕的樣式 */
+        .settings-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            transition: transform 0.3s;
+        }
+        .settings-btn:hover {
+            transform: rotate(90deg); /* 滑鼠游標移過去時會有旋轉動畫 */
         }
         .container {
             background-color: #fff;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        /* 新增 API Key 輸入框的樣式 */
-        .api-key-box {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px dashed #bdc3c7;
-        }
-        .api-key-box label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .api-key-box input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        .api-key-box input:focus {
-            border-color: #e74c3c; /* 聚焦時顯示不同顏色提醒這是重要金鑰 */
-            outline: none;
         }
         textarea {
             width: 100%;
@@ -63,7 +59,7 @@
             border-color: #3498db;
             outline: none;
         }
-        button {
+        button.action-btn {
             background-color: #3498db;
             color: white;
             border: none;
@@ -74,10 +70,10 @@
             width: 100%;
             transition: background-color 0.3s;
         }
-        button:hover {
+        button.action-btn:hover {
             background-color: #2980b9;
         }
-        button:disabled {
+        button.action-btn:disabled {
             background-color: #95a5a6;
             cursor: not-allowed;
         }
@@ -86,7 +82,7 @@
             background-color: #ecf0f1;
             padding: 20px;
             border-radius: 8px;
-            white-space: pre-wrap; /* 保持換行格式 */
+            white-space: pre-wrap; 
             font-size: 16px;
             line-height: 1.6;
             display: none; 
@@ -102,38 +98,57 @@
 </head>
 <body>
 
-    <h1>💡 提示詞大神</h1>
+    <div class="header-container">
+        <h1>💡 提示詞大神</h1>
+        <!-- 齒輪按鈕，點擊呼叫設定金鑰的函數 -->
+        <button class="settings-btn" onclick="configureApiKey()" title="設定/清除 API Key">⚙️</button>
+    </div>
     
     <div class="container">
-        <!-- 新增的 API Key 區塊 -->
-        <div class="api-key-box">
-            <label for="apiKey">🔑 請貼上您的 Gemini API Key：</label>
-            <input type="password" id="apiKey" placeholder="請輸入以 AIzaSy 開頭的金鑰...">
-        </div>
-
         <p>請輸入你腦中粗略的想法或簡單的指令：</p>
         <textarea id="userInput" placeholder="例如：幫我寫一個關於 AI 融入教學的研習計畫，大概 2 小時..."></textarea>
         
-        <button id="optimizeBtn" onclick="optimizePrompt()">✨ 一鍵優化提示詞</button>
+        <button id="optimizeBtn" class="action-btn" onclick="optimizePrompt()">✨ 一鍵優化提示詞</button>
         <div id="loader" class="loader">大神正在施展魔法中，請稍候...</div>
         
         <div id="resultBox" class="result-box"></div>
     </div>
 
     <script>
+        // 設定與管理 API Key 的函數
+        function configureApiKey() {
+            // 從瀏覽器本機儲存空間取得舊的金鑰（如果有的話）
+            let savedKey = localStorage.getItem('gemini_api_key') || "";
+            
+            // 跳出對話框讓使用者輸入
+            let newKey = prompt("🔑 請貼上您的 Gemini API Key：\n\n（💡 若要清除本機的儲存紀錄，請直接清空輸入框並按下確定）", savedKey);
+            
+            // 如果使用者按下「確定」（而不是「取消」）
+            if (newKey !== null) {
+                if (newKey.trim() === "") {
+                    // 如果輸入空白，就從本機空間移除該紀錄
+                    localStorage.removeItem('gemini_api_key');
+                    alert("🗑️ API Key 已從您的瀏覽器中清除！");
+                } else {
+                    // 如果有輸入內容，就儲存到本機空間
+                    localStorage.setItem('gemini_api_key', newKey.trim());
+                    alert("✅ API Key 已成功儲存！下次開啟網頁無需重新輸入。");
+                }
+            }
+        }
+
         async function optimizePrompt() {
-            // 抓取畫面上輸入的 API Key 與想法
-            const apiKey = document.getElementById('apiKey').value.trim();
+            // 每次執行時，先從本機儲存空間把金鑰抓出來
+            const apiKey = localStorage.getItem('gemini_api_key');
             const userInput = document.getElementById('userInput').value.trim();
             
             const btn = document.getElementById('optimizeBtn');
             const loader = document.getElementById('loader');
             const resultBox = document.getElementById('resultBox');
 
-            // 阻擋未輸入的狀況
+            // 檢查是否已經設定金鑰
             if (!apiKey) {
-                alert("請先在上方設定您的 Gemini API Key！");
-                document.getElementById('apiKey').focus();
+                alert("⚠️ 請先點擊右上角的「⚙️ 齒輪」設定您的 API Key！");
                 return;
             }
             if (!userInput) {
@@ -142,24 +157,21 @@
                 return;
             }
 
-            // UI 狀態切換：載入中
             btn.disabled = true;
             loader.style.display = 'block';
             resultBox.style.display = 'none';
             resultBox.innerHTML = '';
 
-            // 寫在前端的萬用 Meta-Prompt
             const systemPrompt = `你現在是一位頂級的「AI 提示詞工程師」。
 請將使用者輸入的粗略想法，運用 RTCF (角色 Role、任務 Task、情境 Context、格式 Format) 等框架，擴寫並優化成一個結構清晰、可以直接複製貼上給 AI 執行的完美 Prompt。
 請直接輸出優化後的 Prompt 內容，不要包含任何開場白或自我介紹，並且適當使用 Markdown 語法（如粗體、清單）讓結構更易讀。`;
 
             const fullPrompt = `${systemPrompt}\n\n使用者的粗略想法：${userInput}\n\n請給出優化後的完美版本：`;
 
-            // 直接組裝 Gemini API 網址，帶入畫面上輸入的 API Key
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            // 使用去除了 -latest 的標準模型名稱
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
             try {
-                // 發送 POST 請求直接給 Google 伺服器
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
@@ -177,12 +189,12 @@
 
                 const data = await response.json();
 
-                // 解析 Google 伺服器回傳的結果
                 if (data.candidates && data.candidates.length > 0) {
                     resultBox.innerHTML = data.candidates[0].content.parts[0].text;
                 } else if (data.error) {
-                    // 萬一 API Key 填錯或失效，這裡會攔截錯誤訊息
                     resultBox.innerHTML = "🚨 API 發生錯誤：" + data.error.message;
+                    // 若發生錯誤（例如金鑰無效），提示使用者檢查設定
+                    alert("API 呼叫失敗，請點擊右上角齒輪確認金鑰是否正確！");
                 } else {
                     resultBox.innerHTML = "發生未知錯誤，請檢查連線。";
                 }
@@ -194,7 +206,6 @@
                 resultBox.innerHTML = "連線失敗，請檢查網路狀態。";
                 resultBox.style.display = 'block';
             } finally {
-                // UI 狀態還原
                 btn.disabled = false;
                 loader.style.display = 'none';
             }
